@@ -13,6 +13,8 @@ import android.widget.ImageButton;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
+import static java.lang.Integer.*;
+
 public class ThirdActivity extends Activity {
     EditText name;
     String time, minute;
@@ -21,7 +23,7 @@ public class ThirdActivity extends Activity {
     ImageButton back;
     SQLiteDatabase sqlDB;
     myDBHelper myHelper;
-
+    String scHour;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -39,6 +41,9 @@ public class ThirdActivity extends Activity {
         final String scHour = intent.getStringExtra("time");
         final String scMinute = intent.getStringExtra("minute");
 
+        name.setText(scName);
+        tPicker.setHour(Integer.parseInt(scHour));
+        tPicker.setMinute(Integer.parseInt(scMinute));
 
         myHelper = new myDBHelper(this);
         back.setOnClickListener(new View.OnClickListener() {
@@ -52,7 +57,7 @@ public class ThirdActivity extends Activity {
                // time = Integer.toString(tPicker.getCurrentHour());
               //  minute = Integer.toString(tPicker.getCurrentMinute());
               //  sqlDB = myHelper.getWritableDatabase();
-               // if(scName != ""){
+                // if(scName != ""){
               //      sqlDB.execSQL("UPDATE ICDD SET st='"+time+":"+minute+":00' WHERE content="+scName+");");
               //  }
 

@@ -23,7 +23,7 @@ public class SecondActivity extends Activity {
     ImageButton back;
     SQLiteDatabase sqlDB;
     myDBHelper myHelper;
-
+    Intent intent;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,7 +35,7 @@ public class SecondActivity extends Activity {
         back = (ImageButton) findViewById(R.id.schBack);
         tPicker = (TimePicker)findViewById(R.id.timePicker);
 
-        Intent intent = getIntent();
+        intent = getIntent();
         final String YearMonthDay = intent.getStringExtra("YMD");
 
         time = Integer.toString(tPicker.getCurrentHour());
@@ -56,6 +56,9 @@ public class SecondActivity extends Activity {
                 sqlDB.execSQL("INSERT INTO ICDD VALUES("+YearMonthDay+",'"+ name.getText().toString()+"', '"+time+":"+minute+":00');");
                 sqlDB.close();
                 Toast.makeText(getApplicationContext(), "저장됨", Toast.LENGTH_SHORT).show();
+                setResult(RESULT_OK,intent);
+                finish();
+
             }
         });
 
