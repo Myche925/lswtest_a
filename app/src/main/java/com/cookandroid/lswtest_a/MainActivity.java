@@ -2,15 +2,25 @@ package com.cookandroid.lswtest_a;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
+
+import android.app.Activity;
+import android.app.Instrumentation;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.RelativeSizeSpan;
+import android.text.style.StyleSpan;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -26,38 +36,49 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.prolificinteractive.materialcalendarview.CalendarDay;
+import com.prolificinteractive.materialcalendarview.DayViewDecorator;
+import com.prolificinteractive.materialcalendarview.DayViewFacade;
+import com.prolificinteractive.materialcalendarview.MaterialCalendarView;
+import com.prolificinteractive.materialcalendarview.OnDateSelectedListener;
+
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity {
 
-    CalendarView calView;
-    TextView tvYear, tvMonth, tvDay, test;
+    MaterialCalendarView calView;
+    TextView tvYear, test;
     //DB에 넣기위해서 따로가져옴
-    int selectYear, selectMonth, selectDay;
-    myDBHelper myHelper;
+    String selectYear, selectMonth, selectDay;
+    static CalendarDay selectedDay = null;
     SQLiteDatabase sqlDB;
     //추가버튼
     Button btnSec; //수정하기버튼
     //SECOND로 인텐트 할꺼
-    String YMDD ,ampm;
+    String YMDD, ampm;
+    CalendarDay cday;
+    ArrayList<CalendarDay> date = new ArrayList<>();
+
+
 
     ListView listView1;
     String[] array; //시간,분으로 String split함수 사용하기위해서 선언
     DbAdapter adapter;
-
+    myDBHelper myHelper;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         setTitle("캘린더앱 테스트");
         // 캘린더뷰
-        calView = (CalendarView) findViewById(R.id.calendarView1);
+        calView = findViewById(R.id.calendarView);
         // 텍스트뷰 중에서 연,월,일 숫자
         tvYear = (TextView) findViewById(R.id.tvYear);
-        tvMonth = (TextView) findViewById(R.id.tvMonth);
-        tvDay = (TextView) findViewById(R.id.tvDay);
         test = (TextView) findViewById(R.id.testtest);
-        //세컨드로 넘어가는버튼(일정입력) 일정삭제하는대 사용하려고 만들어둔 버튼
         btnSec = (Button) findViewById(R.id.btnSec);
         //리스트뷰
         listView1=(ListView)findViewById(R.id.ListView1);
@@ -67,61 +88,116 @@ public class MainActivity extends AppCompatActivity {
         adapter=new DbAdapter();
         ampm = "오전";
 
+         getday();
+         calView.addDecorators(
+                new SundayDecorator(),          //일요일 색 설정
+                new SaturdayDecorator(),        //토요일 색 설정
+                new todayDecorator(),
+                new MySelectorDecorator(this));
+
         //캘린더뷰에서 날짜 눌렀을때 연,월,일 가져오는 함수
-        calView.setOnDateChangeListener(new CalendarView.OnDateChangeListener() {
-            @Override
-            public void onSelectedDayChange(@NonNull CalendarView view, int year, int month, int dayOfMonth) {
-                selectYear =  year;
-                selectMonth = month + 1;
-                selectDay = dayOfMonth;
-                //아래 레이아웃 에있는 연,월,일 텍스트에 복사함
-                tvYear.setText(Integer.toString(selectYear));
-                tvMonth.setText(Integer.toString(selectMonth));
-                tvDay.setText(Integer.toString(selectDay));
-                //SELECT 문할때 10월 / 10일이전이면 9,8 이렇게 저장됨 이걸 09 08 이렇게 저장되게 바꿈
-                if(selectMonth < 10  )
-                    YMDD ="'"+ selectYear + "/0" + selectMonth ;
-                else
-                    YMDD ="'"+ selectYear + "/" + selectMonth ;
+       calView.setOnDateChangedListener(new OnDateSelectedListener() {
+           @Override
+           public void onDateSelected(@NonNull MaterialCalendarView widget, @NonNull CalendarDay date, boolean selected) {
+               selectedDay = date;
+               array = String.valueOf(selectedDay).split("y");
+              // tvYear.setText(array[1].substring(1,array[1].length()-1));
+               YMDD = array[1].substring(1,array[1].length()-1);
 
-                if(selectDay < 10 )
-                    YMDD = YMDD + "/0" + selectDay +"'";
-                else
-                    YMDD = YMDD + "/" + selectDay +"'";
-                adapter.clear(); //리스트초기화
-                //이러면 YMDD 는 ex)'2021/01/01' 이렇게 저장
-                sqlDB = myHelper.getReadableDatabase();
-                Cursor cursor;
-                cursor = sqlDB.rawQuery("SELECT content, st FROM ICDD WHERE YMD ="  +YMDD+  "ORDER BY YMD;" , null);
-                String strNames ;
-                String strNumbers ;
-                while (cursor.moveToNext()) {
-                    strNames= (cursor.getString(0));
-                    strNumbers=(cursor.getString(1));
-                    array = strNumbers.split(":");
-                    if(Integer.parseInt(array[0])>12){
-                        ampm = "오후";
-                        array[0] =String.valueOf(Integer.parseInt(array[0]) - 12);
-                    }
-                    adapter.addItem(new DBItem(strNames+"",ampm+"" ,array[0]+"시"+array[1]+"분" ));
-                    array[0]="";
-                    array[1]=""; //초기화
-                }
-                listView1.setAdapter(adapter); //리스트뷰 활성화
-                cursor.close();
-                sqlDB.close();
+               array = YMDD.split("-");
+               selectYear = array[0];
+               selectMonth= String.valueOf(Integer.parseInt(array[1] )+ 1);
+               selectDay =  array[2];
 
-            }
-        });
+               if(Integer.parseInt(selectMonth )< 10  )
+                   YMDD ="'"+ selectYear + "-0" + selectMonth ;
+               else
+                   YMDD ="'"+ selectYear + "-" + selectMonth ;
+
+               if(Integer.parseInt(selectDay) < 10 )
+                   YMDD = YMDD + "-0" + selectDay +"'";
+               else
+                   YMDD = YMDD + "-" + selectDay +"'";
+               tvYear.setText("  "+YMDD);
+               getDB();
+
+            //   test.setText(selectedDay.toString());
+           }
+
+
+       });
+
         //second로 인텐트할꺼 여기다 넣음
         btnSec.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Intent intent = new Intent(getApplicationContext(),
                         SecondActivity.class);
                 intent.putExtra("YMD",YMDD);
-                startActivity(intent);
+                // startActivity(intent);
+                startActivityForResult(intent, 1);
             }
         });
+    }
+
+    public void getday(){
+        sqlDB = myHelper.getReadableDatabase();
+        Cursor cursor;
+        cursor = sqlDB.rawQuery("SELECT  DISTINCT YMD FROM ICDD;" , null);
+        String Y;
+        while(cursor.moveToNext()){
+            Y = (cursor.getString(0));
+            array = Y.split("-");
+            date.add(CalendarDay.from(Integer.parseInt(array[0]),Integer.parseInt(array[1])-1,Integer.parseInt(array[2])));
+            array[0]="";
+            array[1]=""; //초기화
+            array[2]="";
+        }
+        cursor.close();
+        sqlDB.close();
+        Iterator<CalendarDay> it = date.iterator();
+        while(it.hasNext()) {
+
+            calView.addDecorator(new DBinDecorator(this, it.next() ));
+        }
+    }
+
+
+    //second페이지에서 돌아왔을때 DB갱신용
+    protected void onActivityResult(int requestCode, int resultCode, Intent data)
+    {       super.onActivityResult(requestCode, resultCode, data);
+
+        if(resultCode==RESULT_OK) // 액티비티가 정상적으로 종료되었을 경우
+        {
+            getDB();
+            getday();
+        }
+    }
+
+
+    //DB가져오는함수
+    public void getDB(){
+        adapter.clear(); //리스트초기화
+        //이러면 YMDD 는 ex)'2021/01/01' 이렇게 저장
+        sqlDB = myHelper.getReadableDatabase();
+        Cursor cursor;
+        cursor = sqlDB.rawQuery("SELECT content, st FROM ICDD WHERE YMD ="  +YMDD+  "ORDER BY YMD;" , null);
+        String strNames ;
+        String strNumbers ;
+        while (cursor.moveToNext()) {
+            strNames= (cursor.getString(0));
+            strNumbers=(cursor.getString(1));
+            array = strNumbers.split(":");
+            if(Integer.parseInt(array[0])>12){
+                ampm = "오후";
+                array[0] =String.valueOf(Integer.parseInt(array[0]) - 12);
+            }
+            adapter.addItem(new DBItem(strNames+"",ampm+"" ,array[0]+"시"+array[1]+"분" ));
+            array[0]="";
+            array[1]=""; //초기화
+        }
+        listView1.setAdapter(adapter); //리스트뷰 활성화
+        cursor.close();
+        sqlDB.close();
     }
 
     //DB사용하기위해서 만들어둔거
@@ -185,6 +261,7 @@ public class MainActivity extends AppCompatActivity {
         TextView textView2;     //오전오후 담을 textView
         TextView textView3;     //시간을 담을 textView
         Button btnsec2;        //수정버튼
+        Button  btndel2;        //수정버튼
         String[] Larray;       //ThirdPage인텐트용
 
         //객체의 생성자
@@ -207,6 +284,8 @@ public class MainActivity extends AppCompatActivity {
             textView2=(TextView)findViewById(R.id.textView2);
             textView3=(TextView)findViewById(R.id.textView3);
             btnsec2=(Button)findViewById(R.id.btnsec2);
+            btndel2=(Button)findViewById(R.id.btnDel2);
+
             btnsec2.setOnClickListener(new View.OnClickListener(){
                 @Override
                 public void onClick(View v){
@@ -215,17 +294,32 @@ public class MainActivity extends AppCompatActivity {
 
                     if(textView2.getText().toString().equals("오후"))
                         Larray[0] = String.valueOf(Integer.parseInt(Larray[0]) + 12);
-                   //Third페이지로 넘어가는 자료들
+                    //Third페이지로 넘어가는 자료들
+                    //Third페이지로 넘어가는 자료들
                     Intent intent = new Intent(getApplicationContext(),ThirdActivity.class);
                     intent.putExtra("YMD",YMDD); //연월일 ex) '2021/01/01'
                     intent.putExtra("name",textView.getText()); //일정내용
                     intent.putExtra("time",Larray[0]); //일정시간
                     intent.putExtra("minute",Larray[1]); //일정분
-                  //Toast.makeText(MainActivity.this, Larray[0]+"te", Toast.LENGTH_SHORT).show();
+                    //Toast.makeText(MainActivity.this, Larray[0]+"te", Toast.LENGTH_SHORT).show();
+                    //Toast.makeText(MainActivity.this, Larray[0]+"te", Toast.LENGTH_SHORT).show();
                     //테스트용 토스트메세지
                     startActivity(intent);
                 }
             });
+
+            btndel2.setOnClickListener(new View.OnClickListener(){
+                @Override
+                public void onClick(View v) {
+                    sqlDB = myHelper.getWritableDatabase();
+                    sqlDB.execSQL("DELETE FROM ICDD WHERE YMD = "+YMDD+ " AND content ='"+textView.getText().toString()+"';" );
+                    sqlDB.close();
+                    getDB();
+                    Toast.makeText(getApplicationContext(),"삭제됨", Toast.LENGTH_SHORT).show();
+
+                }
+            });
+
         }
         //각각의 텍스트 뷰에 내용을 삽입하기 위한 setter 메소드들
         public void setContent(String content){
@@ -274,5 +368,115 @@ public class MainActivity extends AppCompatActivity {
             return itemView;
         }
     }
+
+    //MaterialCalendarView 전용
+    private class SundayDecorator implements DayViewDecorator {
+        private final Calendar calendar = Calendar.getInstance();
+
+        private SundayDecorator(){
+        }
+
+        @Override
+        public boolean shouldDecorate(CalendarDay day) {
+            day.copyTo(calendar);
+            int weekDay = calendar.get(Calendar.DAY_OF_WEEK);
+            return weekDay == Calendar.SUNDAY;
+        }
+
+        @Override
+        public void decorate(DayViewFacade view) {
+            view.addSpan(new ForegroundColorSpan(Color.RED));
+        }
+    }
+
+    private class SaturdayDecorator implements DayViewDecorator{
+        private final Calendar calendar = Calendar.getInstance();
+
+        private SaturdayDecorator(){
+        }
+
+        @Override
+        public boolean shouldDecorate(CalendarDay day) {
+            day.copyTo(calendar);
+            int weekDay = calendar.get(Calendar.DAY_OF_WEEK);
+            return weekDay == Calendar.SATURDAY;
+        }
+
+        @Override
+        public void decorate(DayViewFacade view) {
+            view.addSpan(new ForegroundColorSpan(Color.BLUE));
+        }
+    }
+
+    private class todayDecorator implements DayViewDecorator{
+        private CalendarDay date;
+        private todayDecorator(){
+            date = CalendarDay.today();
+        }
+
+        @Override
+        public boolean shouldDecorate(CalendarDay day) {
+            return date != null && day.equals(date);
+        }
+
+        @Override
+        public void decorate(DayViewFacade view) {
+            view.addSpan(new StyleSpan(Typeface.BOLD));
+            view.addSpan(new RelativeSizeSpan(1.4f));
+            view.addSpan(new ForegroundColorSpan(Color.rgb(150,0,200)));
+        }
+
+        public void setDate(Date date){
+            this.date = CalendarDay.from(date);
+        }
+    }
+
+
+    public class MySelectorDecorator implements DayViewDecorator {
+
+        private final Drawable drawable;
+
+        public MySelectorDecorator(Activity context) {
+            drawable = context.getResources().getDrawable(R.drawable.my_selector);
+        }
+
+        @Override
+        public boolean shouldDecorate(CalendarDay day) {
+            return true;
+        }
+
+        @Override
+        public void decorate(DayViewFacade view) {
+            view.setSelectionDrawable(drawable);
+        }
+    }
+
+
+
+    public class DBinDecorator implements DayViewDecorator {
+        private final Drawable drawable2;
+        private final CalendarDay myday;
+
+
+        public DBinDecorator(Activity context ,CalendarDay currentday) {
+            drawable2 = context.getResources().getDrawable(R.drawable.green);
+            myday = currentday;
+        }
+        @Override
+        public boolean shouldDecorate(CalendarDay day) {
+
+            return String.valueOf(day).equals(String.valueOf(myday));
+
+        }
+
+        @Override
+        public void decorate(DayViewFacade view) {
+            view.setBackgroundDrawable(drawable2);
+
+        }
+    }
+
 }
+
+
 
