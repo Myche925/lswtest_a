@@ -1,11 +1,11 @@
 package com.cookandroid.lswtest_a;
 
-
 import androidx.annotation.NonNull;
-import androidx.annotation.VisibleForTesting;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.RecyclerView;
 
+import androidx.appcompat.app.AppCompatActivity;
+
+
+import android.app.Instrumentation;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
@@ -20,7 +20,6 @@ import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.CalendarView;
-import android.widget.Chronometer;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -45,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
     ListView listView1;
     String[] array; //시간,분으로 String split함수 사용하기위해서 선언
     DbAdapter adapter;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,16 +97,32 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+
+
+
         //second로 인텐트할꺼 여기다 넣음
         btnSec.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Intent intent = new Intent(getApplicationContext(),
                         SecondActivity.class);
-                intent.putExtra("YMD",YMDD);
-                startActivity(intent);
+                        intent.putExtra("YMD",YMDD);
+              // startActivity(intent);
+                 startActivityForResult(intent, 1);
             }
         });
+
     }
+    
+    //second페이지에서 돌아왔을때 DB갱신용
+    protected void onActivityResult(int requestCode, int resultCode, Intent data)
+    {       super.onActivityResult(requestCode, resultCode, data);
+
+        if(resultCode==RESULT_OK) // 액티비티가 정상적으로 종료되었을 경우
+        {
+               getDB();
+        }
+    }
+    
     //DB가져오는함수
     public void getDB(){
         adapter.clear(); //리스트초기화
