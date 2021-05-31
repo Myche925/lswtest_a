@@ -1,8 +1,10 @@
 package com.cookandroid.lswtest_a;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.RecyclerView;
 
 
 import android.app.Instrumentation;
@@ -20,6 +22,7 @@ import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.CalendarView;
+import android.widget.Chronometer;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -91,13 +94,40 @@ public class MainActivity extends AppCompatActivity {
                     YMDD = YMDD + "/0" + selectDay +"'";
                 else
                     YMDD = YMDD + "/" + selectDay +"'";
-
-                getDB();
-
+                adapter.clear(); //리스트초기화
+                //이러면 YMDD 는 ex)'2021/01/01' 이렇게 저장
+                sqlDB = myHelper.getReadableDatabase();
+                Cursor cursor;
+                cursor = sqlDB.rawQuery("SELECT content, st FROM ICDD WHERE YMD ="  +YMDD+  "ORDER BY YMD;" , null);
+                String strNames ;
+                String strNumbers ;
+                while (cursor.moveToNext()) {
+                    strNames= (cursor.getString(0));
+                    strNumbers=(cursor.getString(1));
+                    array = strNumbers.split(":");
+                    if(Integer.parseInt(array[0])>12){
+                        ampm = "오후";
+                        array[0] =String.valueOf(Integer.parseInt(array[0]) - 12);
+                    }
+                    adapter.addItem(new DBItem(strNames+"",ampm+"" ,array[0]+"시"+array[1]+"분" ));
+                    array[0]="";
+                    array[1]=""; //초기화
+                }
+                listView1.setAdapter(adapter); //리스트뷰 활성화
+                cursor.close();
+                sqlDB.close();
 
             }
         });
-
+        //second로 인텐트할꺼 여기다 넣음
+        btnSec.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                Intent intent = new Intent(getApplicationContext(),
+                        SecondActivity.class);
+                intent.putExtra("YMD",YMDD);
+                startActivity(intent);
+            }
+        });
 
 
         //second로 인텐트할꺼 여기다 넣음
@@ -105,24 +135,24 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Intent intent = new Intent(getApplicationContext(),
                         SecondActivity.class);
-                        intent.putExtra("YMD",YMDD);
-              // startActivity(intent);
-                 startActivityForResult(intent, 1);
+                intent.putExtra("YMD",YMDD);
+                // startActivity(intent);
+                startActivityForResult(intent, 1);
             }
         });
-
     }
-    
+
+
     //second페이지에서 돌아왔을때 DB갱신용
     protected void onActivityResult(int requestCode, int resultCode, Intent data)
     {       super.onActivityResult(requestCode, resultCode, data);
 
         if(resultCode==RESULT_OK) // 액티비티가 정상적으로 종료되었을 경우
         {
-               getDB();
+            getDB();
         }
     }
-    
+
     //DB가져오는함수
     public void getDB(){
         adapter.clear(); //리스트초기화
@@ -210,7 +240,8 @@ public class MainActivity extends AppCompatActivity {
         TextView textView;      //일정내용 담을 textView
         TextView textView2;     //오전오후 담을 textView
         TextView textView3;     //시간을 담을 textView
-        Button btnsec2, btndel2;        //수정버튼
+        Button btnsec2;        //수정버튼
+        Button  btndel2;        //수정버튼
         String[] Larray;       //ThirdPage인텐트용
 
         //객체의 생성자
@@ -244,11 +275,13 @@ public class MainActivity extends AppCompatActivity {
                     if(textView2.getText().toString().equals("오후"))
                         Larray[0] = String.valueOf(Integer.parseInt(Larray[0]) + 12);
                     //Third페이지로 넘어가는 자료들
+                    //Third페이지로 넘어가는 자료들
                     Intent intent = new Intent(getApplicationContext(),ThirdActivity.class);
                     intent.putExtra("YMD",YMDD); //연월일 ex) '2021/01/01'
                     intent.putExtra("name",textView.getText()); //일정내용
                     intent.putExtra("time",Larray[0]); //일정시간
                     intent.putExtra("minute",Larray[1]); //일정분
+                    //Toast.makeText(MainActivity.this, Larray[0]+"te", Toast.LENGTH_SHORT).show();
                     //Toast.makeText(MainActivity.this, Larray[0]+"te", Toast.LENGTH_SHORT).show();
                     //테스트용 토스트메세지
                     startActivity(intent);
