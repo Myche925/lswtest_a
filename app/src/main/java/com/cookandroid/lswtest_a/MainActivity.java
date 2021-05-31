@@ -1,10 +1,11 @@
 package com.cookandroid.lswtest_a;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.VisibleForTesting;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.RecyclerView;
 
+import androidx.appcompat.app.AppCompatActivity;
+
+
+import android.app.Instrumentation;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
@@ -19,7 +20,6 @@ import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.CalendarView;
-import android.widget.Chronometer;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -45,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
     String[] array; //시간,분으로 String split함수 사용하기위해서 선언
     DbAdapter adapter;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -67,6 +68,8 @@ public class MainActivity extends AppCompatActivity {
         adapter=new DbAdapter();
         ampm = "오전";
 
+
+
         //캘린더뷰에서 날짜 눌렀을때 연,월,일 가져오는 함수
         calView.setOnDateChangeListener(new CalendarView.OnDateChangeListener() {
             @Override
@@ -88,41 +91,64 @@ public class MainActivity extends AppCompatActivity {
                     YMDD = YMDD + "/0" + selectDay +"'";
                 else
                     YMDD = YMDD + "/" + selectDay +"'";
-                adapter.clear(); //리스트초기화
-                //이러면 YMDD 는 ex)'2021/01/01' 이렇게 저장
-                sqlDB = myHelper.getReadableDatabase();
-                Cursor cursor;
-                cursor = sqlDB.rawQuery("SELECT content, st FROM ICDD WHERE YMD ="  +YMDD+  "ORDER BY YMD;" , null);
-                String strNames ;
-                String strNumbers ;
-                while (cursor.moveToNext()) {
-                    strNames= (cursor.getString(0));
-                    strNumbers=(cursor.getString(1));
-                    array = strNumbers.split(":");
-                    if(Integer.parseInt(array[0])>12){
-                        ampm = "오후";
-                        array[0] =String.valueOf(Integer.parseInt(array[0]) - 12);
-                    }
-                    adapter.addItem(new DBItem(strNames+"",ampm+"" ,array[0]+"시"+array[1]+"분" ));
-                    array[0]="";
-                    array[1]=""; //초기화
-                }
-                listView1.setAdapter(adapter); //리스트뷰 활성화
-                cursor.close();
-                sqlDB.close();
+
+                getDB();
+
 
             }
         });
+
+
+
         //second로 인텐트할꺼 여기다 넣음
         btnSec.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Intent intent = new Intent(getApplicationContext(),
                         SecondActivity.class);
-                intent.putExtra("YMD",YMDD);
-                startActivity(intent);
+                        intent.putExtra("YMD",YMDD);
+              // startActivity(intent);
+                 startActivityForResult(intent, 1);
             }
         });
+
     }
+    
+    //second페이지에서 돌아왔을때 DB갱신용
+    protected void onActivityResult(int requestCode, int resultCode, Intent data)
+    {       super.onActivityResult(requestCode, resultCode, data);
+
+        if(resultCode==RESULT_OK) // 액티비티가 정상적으로 종료되었을 경우
+        {
+               getDB();
+        }
+    }
+    
+    //DB가져오는함수
+    public void getDB(){
+        adapter.clear(); //리스트초기화
+        //이러면 YMDD 는 ex)'2021/01/01' 이렇게 저장
+        sqlDB = myHelper.getReadableDatabase();
+        Cursor cursor;
+        cursor = sqlDB.rawQuery("SELECT content, st FROM ICDD WHERE YMD ="  +YMDD+  "ORDER BY YMD;" , null);
+        String strNames ;
+        String strNumbers ;
+        while (cursor.moveToNext()) {
+            strNames= (cursor.getString(0));
+            strNumbers=(cursor.getString(1));
+            array = strNumbers.split(":");
+            if(Integer.parseInt(array[0])>12){
+                ampm = "오후";
+                array[0] =String.valueOf(Integer.parseInt(array[0]) - 12);
+            }
+            adapter.addItem(new DBItem(strNames+"",ampm+"" ,array[0]+"시"+array[1]+"분" ));
+            array[0]="";
+            array[1]=""; //초기화
+        }
+        listView1.setAdapter(adapter); //리스트뷰 활성화
+        cursor.close();
+        sqlDB.close();
+    }
+
 
     //DB사용하기위해서 만들어둔거
     public class myDBHelper extends SQLiteOpenHelper {
@@ -184,7 +210,7 @@ public class MainActivity extends AppCompatActivity {
         TextView textView;      //일정내용 담을 textView
         TextView textView2;     //오전오후 담을 textView
         TextView textView3;     //시간을 담을 textView
-        Button btnsec2;        //수정버튼
+        Button btnsec2, btndel2;        //수정버튼
         String[] Larray;       //ThirdPage인텐트용
 
         //객체의 생성자
@@ -207,6 +233,8 @@ public class MainActivity extends AppCompatActivity {
             textView2=(TextView)findViewById(R.id.textView2);
             textView3=(TextView)findViewById(R.id.textView3);
             btnsec2=(Button)findViewById(R.id.btnsec2);
+            btndel2=(Button)findViewById(R.id.btnDel2);
+
             btnsec2.setOnClickListener(new View.OnClickListener(){
                 @Override
                 public void onClick(View v){
@@ -215,17 +243,30 @@ public class MainActivity extends AppCompatActivity {
 
                     if(textView2.getText().toString().equals("오후"))
                         Larray[0] = String.valueOf(Integer.parseInt(Larray[0]) + 12);
-                   //Third페이지로 넘어가는 자료들
+                    //Third페이지로 넘어가는 자료들
                     Intent intent = new Intent(getApplicationContext(),ThirdActivity.class);
                     intent.putExtra("YMD",YMDD); //연월일 ex) '2021/01/01'
                     intent.putExtra("name",textView.getText()); //일정내용
                     intent.putExtra("time",Larray[0]); //일정시간
                     intent.putExtra("minute",Larray[1]); //일정분
-                  //Toast.makeText(MainActivity.this, Larray[0]+"te", Toast.LENGTH_SHORT).show();
+                    //Toast.makeText(MainActivity.this, Larray[0]+"te", Toast.LENGTH_SHORT).show();
                     //테스트용 토스트메세지
                     startActivity(intent);
                 }
             });
+
+            btndel2.setOnClickListener(new View.OnClickListener(){
+                @Override
+                public void onClick(View v) {
+                    sqlDB = myHelper.getWritableDatabase();
+                    sqlDB.execSQL("DELETE FROM ICDD WHERE YMD = "+YMDD+ " AND content ='"+textView.getText().toString()+"';" );
+                    sqlDB.close();
+                    getDB();
+                    Toast.makeText(getApplicationContext(),"삭제됨", Toast.LENGTH_SHORT).show();
+
+                }
+            });
+
         }
         //각각의 텍스트 뷰에 내용을 삽입하기 위한 setter 메소드들
         public void setContent(String content){
@@ -275,4 +316,3 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 }
-
