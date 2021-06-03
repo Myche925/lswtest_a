@@ -60,12 +60,8 @@
         android:layout_height="wrap_content"
         android:id="@+id/btnSec"
         android:text = "일정추가"/>
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/btnDel"
-            android:text = "일정삭제"/>
-        <TextView
+
+        <EditText
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:id="@+id/testtest"

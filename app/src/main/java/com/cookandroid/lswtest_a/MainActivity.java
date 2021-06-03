@@ -1,6 +1,7 @@
 package com.cookandroid.lswtest_a;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -51,7 +52,8 @@ import java.util.Objects;
 public class MainActivity extends AppCompatActivity {
 
     MaterialCalendarView calView;
-    TextView tvYear, test;
+    TextView tvYear;
+    EditText test;
     //DB에 넣기위해서 따로가져옴
     String selectYear, selectMonth, selectDay;
     static CalendarDay selectedDay = null;
@@ -60,11 +62,8 @@ public class MainActivity extends AppCompatActivity {
     Button btnSec; //수정하기버튼
     //SECOND로 인텐트 할꺼
     String YMDD, ampm;
-    CalendarDay cday;
+    CalendarDay delday = null;
     ArrayList<CalendarDay> date = new ArrayList<>();
-
-
-
     ListView listView1;
     String[] array; //시간,분으로 String split함수 사용하기위해서 선언
     DbAdapter adapter;
@@ -78,7 +77,7 @@ public class MainActivity extends AppCompatActivity {
         calView = findViewById(R.id.calendarView);
         // 텍스트뷰 중에서 연,월,일 숫자
         tvYear = (TextView) findViewById(R.id.tvYear);
-        test = (TextView) findViewById(R.id.testtest);
+        test = (EditText) findViewById(R.id.testtest);
         btnSec = (Button) findViewById(R.id.btnSec);
         //리스트뷰
         listView1=(ListView)findViewById(R.id.ListView1);
@@ -87,7 +86,6 @@ public class MainActivity extends AppCompatActivity {
         //리스트뷰 관련 함수모음
         adapter=new DbAdapter();
         ampm = "오전";
-
          getday();
          calView.addDecorators(
                 new SundayDecorator(),          //일요일 색 설정
@@ -113,14 +111,12 @@ public class MainActivity extends AppCompatActivity {
                    YMDD ="'"+ selectYear + "-0" + selectMonth ;
                else
                    YMDD ="'"+ selectYear + "-" + selectMonth ;
-
                if(Integer.parseInt(selectDay) < 10 )
                    YMDD = YMDD + "-0" + selectDay +"'";
                else
                    YMDD = YMDD + "-" + selectDay +"'";
                tvYear.setText("  "+YMDD);
                getDB();
-
             //   test.setText(selectedDay.toString());
            }
 
@@ -133,17 +129,18 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent(getApplicationContext(),
                         SecondActivity.class);
                 intent.putExtra("YMD",YMDD);
-                // startActivity(intent);
                 startActivityForResult(intent, 1);
             }
         });
     }
 
+
+    
     public void getday(){
         sqlDB = myHelper.getReadableDatabase();
         Cursor cursor;
         cursor = sqlDB.rawQuery("SELECT  DISTINCT YMD FROM ICDD;" , null);
-        String Y;
+        String Y; //2021-06-21 이런식으로 리턴될값이 저장
         while(cursor.moveToNext()){
             Y = (cursor.getString(0));
             array = Y.split("-");
@@ -156,16 +153,16 @@ public class MainActivity extends AppCompatActivity {
         sqlDB.close();
         Iterator<CalendarDay> it = date.iterator();
         while(it.hasNext()) {
-
             calView.addDecorator(new DBinDecorator(this, it.next() ));
         }
+        calView.addDecorator(new DBinDecorator(this, delday ));
+        test.setText(this.toString());
     }
 
 
     //second페이지에서 돌아왔을때 DB갱신용
     protected void onActivityResult(int requestCode, int resultCode, Intent data)
     {       super.onActivityResult(requestCode, resultCode, data);
-
         if(resultCode==RESULT_OK) // 액티비티가 정상적으로 종료되었을 경우
         {
             getDB();
@@ -195,6 +192,7 @@ public class MainActivity extends AppCompatActivity {
             array[0]="";
             array[1]=""; //초기화
         }
+        ampm = "오전";
         listView1.setAdapter(adapter); //리스트뷰 활성화
         cursor.close();
         sqlDB.close();
@@ -295,16 +293,13 @@ public class MainActivity extends AppCompatActivity {
                     if(textView2.getText().toString().equals("오후"))
                         Larray[0] = String.valueOf(Integer.parseInt(Larray[0]) + 12);
                     //Third페이지로 넘어가는 자료들
-                    //Third페이지로 넘어가는 자료들
                     Intent intent = new Intent(getApplicationContext(),ThirdActivity.class);
-                    intent.putExtra("YMD",YMDD); //연월일 ex) '2021/01/01'
+                    intent.putExtra("YMD",YMDD); //연월일 ex) '2021-01-01'
                     intent.putExtra("name",textView.getText()); //일정내용
                     intent.putExtra("time",Larray[0]); //일정시간
                     intent.putExtra("minute",Larray[1]); //일정분
                     //Toast.makeText(MainActivity.this, Larray[0]+"te", Toast.LENGTH_SHORT).show();
-                    //Toast.makeText(MainActivity.this, Larray[0]+"te", Toast.LENGTH_SHORT).show();
-                    //테스트용 토스트메세지
-                    startActivity(intent);
+                    startActivityForResult(intent, 1);
                 }
             });
 
@@ -315,8 +310,14 @@ public class MainActivity extends AppCompatActivity {
                     sqlDB.execSQL("DELETE FROM ICDD WHERE YMD = "+YMDD+ " AND content ='"+textView.getText().toString()+"';" );
                     sqlDB.close();
                     getDB();
+                    YMDD = YMDD.substring(1,YMDD.length()-1);
+                    array = YMDD.split("-");
+                    delday = CalendarDay.from(Integer.parseInt(array[0]),Integer.parseInt(array[1])-1,Integer.parseInt(array[2]));
+                    array[0]="";
+                    array[1]=""; //초기화
+                    array[2]="";
+                 //   calView.addDecorator(new DBinDecorator2( , delday ));
                     Toast.makeText(getApplicationContext(),"삭제됨", Toast.LENGTH_SHORT).show();
-
                 }
             });
 
@@ -372,7 +373,6 @@ public class MainActivity extends AppCompatActivity {
     //MaterialCalendarView 전용
     private class SundayDecorator implements DayViewDecorator {
         private final Calendar calendar = Calendar.getInstance();
-
         private SundayDecorator(){
         }
 
@@ -439,7 +439,6 @@ public class MainActivity extends AppCompatActivity {
         public MySelectorDecorator(Activity context) {
             drawable = context.getResources().getDrawable(R.drawable.my_selector);
         }
-
         @Override
         public boolean shouldDecorate(CalendarDay day) {
             return true;
@@ -476,7 +475,29 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-}
+    public class DBinDecorator2 implements DayViewDecorator {
+        private final Drawable drawable2;
+        private final CalendarDay myday;
+
+
+        public DBinDecorator2(Activity context ,CalendarDay currentday) {
+            drawable2 = context.getResources().getDrawable(R.drawable.white);
+            myday = currentday;
+        }
+        @Override
+        public boolean shouldDecorate(CalendarDay day) {
+          //  test.setText(myday.toString());
+            return false;
+           // return String.valueOf(day).equals(String.valueOf(myday));
+
+        }
+
+        @Override
+        public void decorate(DayViewFacade view) {
+            view.setBackgroundDrawable(drawable2);
+
+        }
+    }}
 
 
 

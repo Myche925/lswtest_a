@@ -13,17 +13,17 @@ import android.widget.ImageButton;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
-import static java.lang.Integer.*;
-
 public class ThirdActivity extends Activity {
     EditText name;
     String time, minute;
+    String newName;
     TimePicker tPicker;
     Button save;
     ImageButton back;
     SQLiteDatabase sqlDB;
     myDBHelper myHelper;
-    String scHour;
+    int hours, minutes;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,15 +35,17 @@ public class ThirdActivity extends Activity {
         back = (ImageButton) findViewById(R.id.schBack);
         tPicker = (TimePicker)findViewById(R.id.timePicker);
 
-        Intent intent = getIntent();
+        final Intent intent = getIntent();
         final String YearMonthDay = intent.getStringExtra("YMD");
         final String scName = intent.getStringExtra("name");
         final String scHour = intent.getStringExtra("time");
         final String scMinute = intent.getStringExtra("minute");
 
         name.setText(scName);
-        tPicker.setHour(Integer.parseInt(scHour));
-        tPicker.setMinute(Integer.parseInt(scMinute));
+        hours = Integer.parseInt(scHour);
+        minutes = Integer.parseInt(scMinute);
+        tPicker.setHour(hours);
+        tPicker.setMinute(minutes);
 
         myHelper = new myDBHelper(this);
         back.setOnClickListener(new View.OnClickListener() {
@@ -53,16 +55,18 @@ public class ThirdActivity extends Activity {
         });
         save.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                name.setText(scHour);
-               // time = Integer.toString(tPicker.getCurrentHour());
-              //  minute = Integer.toString(tPicker.getCurrentMinute());
-              //  sqlDB = myHelper.getWritableDatabase();
-                // if(scName != ""){
-              //      sqlDB.execSQL("UPDATE ICDD SET st='"+time+":"+minute+":00' WHERE content="+scName+");");
-              //  }
+                newName = name.getText().toString();
+                time = Integer.toString(tPicker.getCurrentHour());
+                minute = Integer.toString(tPicker.getCurrentMinute());
+                sqlDB = myHelper.getWritableDatabase();
 
-              //  sqlDB.close();
-              //  Toast.makeText(getApplicationContext(), "수정됨", Toast.LENGTH_SHORT).show();
+                sqlDB.execSQL("UPDATE ICDD SET content='"+newName+"' WHERE YMD ="+YearMonthDay+" AND st='"+scHour+":"+scMinute+":00';");
+                sqlDB.execSQL("UPDATE ICDD SET st='"+time+":"+minute+":00' WHERE YMD ="+YearMonthDay+" AND content='"+newName+"';");
+                Toast.makeText(getApplicationContext(), "수정됨", Toast.LENGTH_SHORT).show();
+                //name.setText("UPDATE ICDD SET st='"+time+":"+minute+":00' WHERE YMD ="+YearMonthDay+" AND WHERE content='"+newName+"';");
+                sqlDB.close();
+                setResult(RESULT_OK,intent);
+                finish();
             }
         });
 
@@ -83,6 +87,4 @@ public class ThirdActivity extends Activity {
             onCreate(db);
         }
     }
-
-
 }
